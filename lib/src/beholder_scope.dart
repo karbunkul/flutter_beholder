@@ -2,7 +2,7 @@ import 'package:beholder/src/log_entry_controller.dart';
 import 'package:beholder/src/log_view_widget.dart';
 import 'package:flutter/widgets.dart';
 
-typedef MatchLogWidgetCallback = LogViewWidget Function(dynamic data);
+typedef MatchLogWidgetCallback = LogViewWidget Function(Object? data);
 
 @immutable
 class BeholderScope extends InheritedWidget {

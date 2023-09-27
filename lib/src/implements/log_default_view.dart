@@ -6,7 +6,7 @@ final class LogDefaultView extends LogViewWidget {
   const LogDefaultView({super.key});
 
   @override
-  Widget builder(BuildContext context, dynamic value) {
+  Widget builder(context, value) {
     return Text(value.toString());
   }
 }

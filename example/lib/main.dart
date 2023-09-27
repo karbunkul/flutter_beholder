@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -22,7 +23,6 @@ class MyApp extends StatelessWidget {
         return BeholderManager(
           items: const [
             LogJsonView(),
-            LogAddressView(),
             LogColorView(),
           ],
           child: child ?? const SizedBox.shrink(),
@@ -32,18 +32,18 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class DemoPage extends StatelessWidget {
+class DemoPage extends Beholder {
   const DemoPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final scope = BeholderScope.of(context);
+  Widget builder(BuildContext context, controller) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Beholder'),
         actions: [
+          LogSpawn(onSpawn: _onGenerate),
           IconButton(
-            onPressed: scope.controller.clearAll,
+            onPressed: controller.clearAll,
             icon: const Icon(Icons.restore_from_trash_outlined),
           ),
         ],
@@ -57,23 +57,26 @@ class DemoPage extends StatelessWidget {
           //   ),
           // ),
           StreamBuilder(
-            stream: scope.controller.availableTags,
+            stream: controller.availableTags,
             builder: (context, snap) {
               if (!snap.hasData) {
                 return const SliverToBoxAdapter();
               }
 
-              return SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+              return SliverAppBar(
+                pinned: true,
+                centerTitle: false,
+                title: Transform(
+                  alignment: Alignment.centerLeft,
+                  transform: Matrix4.identity()..scale(0.8),
                   child: Wrap(
                     spacing: 4,
                     children: snap.data!.map(
                       (e) {
                         return FilterChip(
                           label: Text(e),
-                          selected: scope.controller.tags.contains(e),
-                          onSelected: _onSelected(context, e),
+                          selected: controller.tags.contains(e),
+                          onSelected: (_) => controller.toggleTag(e),
                         );
                       },
                     ).toList(growable: false),
@@ -83,25 +86,26 @@ class DemoPage extends StatelessWidget {
             },
           ),
           StreamBuilder<List<LogEntry>>(
-            stream: scope.controller.logs,
+            stream: controller.logs,
             builder: (context, snap) {
+              if (controller.isFiltered && snap.data?.isEmpty == true) {
+                return SliverToBoxAdapter(
+                  child: ListTile(
+                    title: const Text('No results'),
+                    subtitle: const Text('Try change criteria for filters'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: controller.filterClear,
+                    ),
+                  ),
+                );
+              }
+
               return SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final entry = snap.data!.elementAt(index);
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ListTile(
-                          title: Text(entry.logger),
-                          trailing: _Tags(tags: entry.tags),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: LogEntryView(entry: entry),
-                        ),
-                      ],
-                    );
+                    return LogEntryBox(entry: entry, controller: controller);
                   },
                   childCount: snap.data?.length ?? 0,
                 ),
@@ -133,7 +137,7 @@ class DemoPage extends StatelessWidget {
       },
     ]);
 
-    Logger('Test').logWithExtra(
+    Logger('LOGGER NAME').logWithExtra(
       Level.INFO,
       randomObject.elementAt(Random().nextInt(randomObject.length)),
       tags: _genTags(),
@@ -151,13 +155,6 @@ class DemoPage extends StatelessWidget {
       }.toList(growable: false)
     ];
     return items.elementAt(Random().nextInt(items.length));
-  }
-
-  ValueChanged<bool> _onSelected(BuildContext context, String tag) {
-    return (value) {
-      final scope = BeholderScope.of(context);
-      scope.controller.toggleTag(tag);
-    };
   }
 }
 
@@ -196,49 +193,157 @@ final class LogColorView extends LogViewWidget<MaterialColor> {
   const LogColorView({super.key});
 
   @override
-  Widget builder(BuildContext context, Color value) {
-    final style = Theme.of(context).textTheme.bodyMedium?.copyWith(
-          color: value,
-        );
-    return Row(
-      children: [
-        Text(
-            'Color (r:${value.red}, g: ${value.green}, b: ${value.blue}, a: ${value.alpha})',
-            style: style),
-        const Spacer(),
-        IconButton(
-            onPressed: () {
-              Clipboard.setData(ClipboardData(text: value.toString()));
-            },
-            icon: const Icon(Icons.copy_all_outlined))
-      ],
+  Widget builder(BuildContext context, MaterialColor value) {
+    final style = Theme.of(context).textTheme.bodyMedium;
+    final Color(:red, :green, :blue, :alpha) = value;
+    final str = 'Color (r:$red, g: $green, b: $blue, a: $alpha)';
+
+    return Text(
+      str,
+      style: style?.copyWith(color: value),
+    );
+  }
+
+  @override
+  List<LogEntryAction> actions() {
+    return [
+      LogEntryAction(
+        label: 'Copy to clipboard',
+        action: (value) {
+          Clipboard.setData(ClipboardData(text: value.toString()));
+        },
+      ),
+      LogEntryAction(
+        label: 'Copy as CURL',
+        action: (value) {
+          Clipboard.setData(ClipboardData(text: value.toString()));
+        },
+      ),
+    ];
+  }
+}
+
+class LogEntryBox extends StatelessWidget {
+  final LogEntryController controller;
+  final LogEntry entry;
+  const LogEntryBox({super.key, required this.entry, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Text(entry.logger),
+              const Spacer(),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _Tags(entry: entry, controller: controller),
+                  _Actions(entry: entry),
+                ],
+              ),
+            ],
+          ),
+          LogEntryView(
+            entry: entry,
+            renderType: LogRenderType.presentation,
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _Tags extends StatelessWidget {
-  final List<String>? tags;
-  const _Tags({this.tags});
+  final LogEntryController controller;
+  final LogEntry entry;
+  const _Tags({required this.entry, required this.controller});
 
   @override
   Widget build(BuildContext context) {
-    if (tags == null) {
+    if (!entry.hasTags) {
       return const SizedBox.shrink();
     }
-    final scope = BeholderScope.of(context);
-    return Wrap(
-      spacing: 2,
-      children: tags!.map(
-        (e) {
-          return ChoiceChip(
-            label: Text(e),
-            selected: scope.controller.tags.contains(e),
-            onSelected: (bool value) {
-              scope.controller.toggleTag(e);
-            },
-          );
-        },
-      ).toList(growable: false),
+    // final scope = BeholderScope.of(context);
+    final widgetTags = entry.tags!.map(
+      (e) {
+        return ChoiceChip(
+          label: Text(e),
+          selected: controller.tags.contains(e),
+          onSelected: (bool value) => controller.toggleTag(e),
+        );
+      },
+    ).toList(growable: false);
+
+    return Wrap(spacing: 2, children: widgetTags);
+  }
+}
+
+class _Actions extends StatelessWidget {
+  final LogEntry entry;
+
+  const _Actions({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!entry.hasActions) {
+      return const SizedBox.shrink();
+    }
+
+    final items = entry.actions!.map((e) {
+      return MenuItemButton(
+        onPressed: () => e.action(entry.data),
+        child: Text(e.label),
+      );
+    }).toList(growable: false);
+
+    return MenuAnchor(
+      builder: (context, controller, child) {
+        return IconButton(
+          onPressed: () => controller.open(),
+          icon: const Icon(Icons.more_vert_outlined),
+        );
+      },
+      menuChildren: items,
+    );
+  }
+}
+
+class LogSpawn extends StatefulWidget {
+  final VoidCallback onSpawn;
+  const LogSpawn({super.key, required this.onSpawn});
+
+  @override
+  State<LogSpawn> createState() => _LogSpawnState();
+}
+
+class _LogSpawnState extends State<LogSpawn> {
+  Timer? timer;
+
+  bool enable = false;
+
+  @override
+  void initState() {
+    timer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (enable) {
+        widget.onSpawn();
+      }
+    });
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: () => setState(() => enable = !enable),
+      icon: Icon(
+        enable ? Icons.timer_off_outlined : Icons.timer_outlined,
+      ),
     );
   }
 }

@@ -1,6 +1,6 @@
 import 'package:beholder/src/beholder_scope.dart';
+import 'package:beholder/src/implements/log_default_controller.dart';
 import 'package:beholder/src/implements/logging_repository.dart';
-import 'package:beholder/src/log_entry_controller.dart';
 import 'package:beholder/src/log_entry_repository.dart';
 import 'package:flutter/widgets.dart';
 
@@ -24,9 +24,12 @@ class BeholderManager extends StatefulWidget {
 }
 
 class _BeholderManagerState extends State<BeholderManager> {
-  late final _controller = LogEntryController(
-    widget.repository ?? LogEntryLoggingRepository(),
+  late final _controller = LogDefaultController(
+    repository: widget.repository ?? LogEntryLoggingRepository(),
+    matchLogWidget: _onMatchLogWidget,
   );
+
+  final Map<Type, LogViewWidget<Object>> _logWidgets = {};
 
   @override
   Widget build(BuildContext context) {
@@ -38,9 +41,28 @@ class _BeholderManagerState extends State<BeholderManager> {
   }
 
   LogViewWidget _onMatchLogWidget(data) {
-    return widget.items.firstWhere(
+    if (data == null) {
+      return const LogDefaultView();
+    }
+
+    final type = data.runtimeType;
+    if (_logWidgets.containsKey(type)) {
+      return _logWidgets[type]!;
+    }
+
+    final matchedWidget = widget.items.firstWhere(
       (element) => element.hasApply(data),
       orElse: () => const LogDefaultView(),
     );
+
+    _logWidgets.putIfAbsent(type, () => matchedWidget);
+
+    return matchedWidget;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 }
