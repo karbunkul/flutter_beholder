@@ -18,7 +18,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: ThemeData(useMaterial3: true),
-      home: const DemoPage(),
+      home: const HomePage(),
       builder: (context, child) {
         return BeholderManager(
           items: const [
@@ -32,6 +32,68 @@ class MyApp extends StatelessWidget {
   }
 }
 
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Beholder demo'),
+        actions: [LogSpawn(onSpawn: _onGenerate)],
+      ),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => DemoPage(),
+              ),
+            );
+          },
+          child: Text('Log view'),
+        ),
+      ),
+    );
+  }
+
+  void _onGenerate() {
+    final colors = List.unmodifiable([
+      Colors.red,
+      Colors.indigo,
+      Colors.green,
+      Colors.teal,
+    ]);
+
+    final randomObject = List.unmodifiable([
+      // faker.address,
+      colors.elementAt(Random().nextInt(colors.length)),
+      {
+        'animal': faker.animal.name(),
+      },
+    ]);
+
+    Logger('LOGGER NAME').logWithExtra(
+      Level.INFO,
+      randomObject.elementAt(Random().nextInt(randomObject.length)),
+      tags: _genTags(),
+    );
+  }
+
+  List<String>? _genTags() {
+    final tags = ['network', 'ui', 'logic', 'di'];
+
+    final items = <List<String>?>[
+      null,
+      {
+        tags.elementAt(Random().nextInt(tags.length)),
+        if (Random().nextBool()) tags.elementAt(Random().nextInt(tags.length)),
+      }.toList(growable: false)
+    ];
+    return items.elementAt(Random().nextInt(items.length));
+  }
+}
+
 class DemoPage extends Beholder {
   const DemoPage({super.key});
 
@@ -41,7 +103,6 @@ class DemoPage extends Beholder {
       appBar: AppBar(
         title: const Text('Beholder'),
         actions: [
-          LogSpawn(onSpawn: _onGenerate),
           IconButton(
             onPressed: controller.clearAll,
             icon: const Icon(Icons.restore_from_trash_outlined),
@@ -64,6 +125,8 @@ class DemoPage extends Beholder {
               }
 
               return SliverAppBar(
+                leadingWidth: 0,
+                leading: const SizedBox.shrink(),
                 pinned: true,
                 centerTitle: false,
                 title: Transform(
@@ -86,8 +149,10 @@ class DemoPage extends Beholder {
             },
           ),
           StreamBuilder<List<LogEntry>>(
+            key: ValueKey(DateTime.now()),
             stream: controller.logs,
             builder: (context, snap) {
+              print(snap.data);
               if (controller.isFiltered && snap.data?.isEmpty == true) {
                 return SliverToBoxAdapter(
                   child: ListTile(

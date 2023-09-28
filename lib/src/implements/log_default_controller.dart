@@ -9,8 +9,9 @@ typedef MatchLogWidgetCallback = LogViewWidget Function(Object? data);
 
 final class LogDefaultController extends LogEntryController {
   final LogEntryRepository repository;
+
   final MatchLogWidgetCallback matchLogWidget;
-  final _logStream = StreamController<List<LogEntry>>.broadcast();
+  final _logStream = StreamController<List<LogEntry>>.broadcast(sync: true);
   final _tagsStream = StreamController<List<String>>.broadcast();
   final _selectedTags = <String>[];
   final _availableTags = <String>[];
@@ -19,10 +20,10 @@ final class LogDefaultController extends LogEntryController {
     required this.repository,
     required this.matchLogWidget,
   }) {
-    repository.addListener(_update);
+    repository.addListener(update);
   }
 
-  Future<void> _update() async {
+  Future<void> update() async {
     final logs = await repository.search(tags: _selectedTags);
     _logStream.add(logs);
     final availableTags = await repository.tags();
@@ -62,7 +63,7 @@ final class LogDefaultController extends LogEntryController {
     _selectedTags.clear();
     _selectedTags.addAll(tags);
     _availableTags.clear();
-    _update();
+    update();
   }
 
   @override
@@ -70,16 +71,16 @@ final class LogDefaultController extends LogEntryController {
     repository.clearAll();
     _selectedTags.clear();
     _availableTags.clear();
-    _update();
+    update();
   }
 
   void dispose() {
-    repository.removeListener(_update);
+    repository.removeListener(update);
   }
 
   @override
   void filterClear() {
     _selectedTags.clear();
-    _update();
+    update();
   }
 }
