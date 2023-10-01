@@ -17,6 +17,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(useMaterial3: true),
       home: const HomePage(),
       builder: (context, child) {
@@ -152,7 +153,6 @@ class DemoPage extends Beholder {
             key: ValueKey(DateTime.now()),
             stream: controller.logs,
             builder: (context, snap) {
-              print(snap.data);
               if (controller.isFiltered && snap.data?.isEmpty == true) {
                 return SliverToBoxAdapter(
                   child: ListTile(
@@ -314,6 +314,7 @@ class LogEntryBox extends StatelessWidget {
               ),
             ],
           ),
+          Text(entry.message),
           LogEntryView(
             entry: entry,
             renderType: LogRenderType.presentation,

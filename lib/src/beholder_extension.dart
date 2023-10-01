@@ -21,4 +21,21 @@ extension BeholderExtension on Logger {
       zone,
     );
   }
+
+  void infoWithTag({
+    required String tag,
+    Object? message,
+    Object? error,
+    StackTrace? stackTrace,
+    Zone? zone,
+  }) {
+    logWithExtra(
+      Level.INFO,
+      message,
+      error: error,
+      stackTrace: stackTrace,
+      zone: zone,
+      tags: [tag],
+    );
+  }
 }

@@ -6,4 +6,9 @@ final class LogEntryExtra {
   final List<String>? tags;
 
   const LogEntryExtra({this.data, this.tags});
+
+  @override
+  String toString() {
+    return data?.toString() ?? super.toString();
+  }
 }
